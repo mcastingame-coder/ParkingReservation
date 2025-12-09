@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>ระบบจองที่จอดรถ</title>
+  <title>ระบบจองที่จอดรถ (Parking Reservation)</title>
 
   <!-- โหลด QRCode library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
@@ -85,14 +85,15 @@
   <h1>ระบบจองที่จอดรถ</h1>
 
   <button onclick="bookSlot()" style="padding: 12px 25px; font-size: 18px;">
-    จองที่จอดรถ
+    จองที่จอดรถ (Reservation)
   </button>
 
   <h3>รหัสการจอง:</h3>
   <div id="resId" style="font-size: 20px; color: #333;"></div>
 
-  <h3>QR Code สำหรับสแกน</h3>
+  <h3>QR Code สำหรับยืนยันการจอง</h3>
   <canvas id="qrBox"></canvas>
 
 </body>
 </html>
+
