@@ -7,6 +7,7 @@
   <!-- QRCode library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
     import { getDatabase, ref, push, set, get, child } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
@@ -18,132 +19,159 @@
       projectId: "parking-reservation-8a90d",
       storageBucket: "parking-reservation-8a90d.appspot.com",
       messagingSenderId: "229489334106",
-      appId: "1:229489334106:web:80f41505d329ace87b4563",
+      appId: "1:229489334106:web:80f41505d329ace87b4563"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // -------------------------- เวลาไทย --------------------------
-    function formatThaiTime(timestamp) {
-      const date = new Date(timestamp);
-      return date.toLocaleString("th-TH", {
+    // ฟังก์ชันแปลงเวลาไทย
+    function thaiTime(ts) {
+      return new Date(ts).toLocaleString("th-TH", {
         timeZone: "Asia/Bangkok",
-        year: "numeric",
+        year : "numeric",
         month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
+        day  : "2-digit",
+        hour : "2-digit",
         minute: "2-digit",
-        second: "2-digit"
+        second: "2-digit",
       });
     }
 
-    // -------------------------- ตรวจเบอร์ --------------------------
-    async function checkExisting(phone) {
-      const dbRef = ref(db);
-      const snap = await get(child(dbRef, "reservations"));
-
-      if (!snap.exists()) return null;
-
-      const data = snap.val();
-      for (let id in data) {
-        if (data[id].phone === phone) {
-          return data[id]; // คืนข้อมูลการจองเก่า
-        }
-      }
-      return null;
-    }
-
-    // -------------------------- ฟังก์ชันจอง --------------------------
+    // เมื่อกดปุ่ม "จอง"
     window.bookSlot = async function () {
       const phone = document.getElementById("phone").value.trim();
 
       if (phone.length < 9) {
-        alert("กรุณากรอกเบอร์โทรให้ถูกต้อง");
+        alert("กรุณากรอกเบอร์ให้ถูกต้อง");
         return;
       }
 
-      // เช็คว่าเบอร์นี้เคยจองหรือยัง
-      const oldBooking = await checkExisting(phone);
+      const dbRef = ref(db);
 
-      if (oldBooking) {
-        // ใช้ข้อมูลเก่า ไม่สร้างใหม่
-        document.getElementById("resId").innerText = oldBooking.id;
-        drawQR(oldBooking.id);
-        alert("พบข้อมูลเดิม — แสดง QR เดิมให้คุณแล้ว");
+      // 🔍 ตรวจสอบก่อนว่าเบอร์นี้เคยจองแล้วหรือไม่
+      const snapshot = await get(child(dbRef, "reservations_by_phone/" + phone));
+
+      if (snapshot.exists()) {
+        const oldId = snapshot.val().id;
+
+        // ดึงข้อมูลเดิม
+        const oldData = (await get(child(dbRef, "reservations/" + oldId))).val();
+
+        document.getElementById("resId").innerText = oldId;
+
+        // โชว์ QR เดิม
+        const qrBox = document.getElementById("qrBox");
+        qrBox.innerHTML = "";
+        QRCode.toCanvas(qrBox, oldId, { width: 200 });
+
+        alert("เบอร์นี้เคยจองแล้ว → แสดง QR เดิมให้");
         return;
       }
 
-      // -------------------- สร้างรายการใหม่ -------------------------
-      const reservationRef = push(ref(db, "reservations"));
-      const reservationId = reservationRef.key;
+      // 🆕 สร้างการจองใหม่
+      const newRef = push(ref(db, "reservations"));
+      const reservationId = newRef.key;
 
-      const now = Date.now();
-      const thaiTime = formatThaiTime(now);
+      const ts = Date.now();
 
       const data = {
         id: reservationId,
         phone: phone,
-        timestamp: now,
-        time_th: thaiTime,
+        timestamp: ts,
+        time_th: thaiTime(ts),
         used: false
       };
 
-      await set(reservationRef, data);
+      // บันทึกข้อมูลจริง
+      await set(newRef, data);
 
+      // map เบอร์ → id
+      await set(ref(db, "reservations_by_phone/" + phone), { id: reservationId });
+
+      // แสดงผล
       document.getElementById("resId").innerText = reservationId;
 
-      drawQR(reservationId);
-      alert("จองสำเร็จ!");
-    };
-
-    // -------------------------- สร้าง QR --------------------------
-    function drawQR(text) {
       const qrBox = document.getElementById("qrBox");
       qrBox.innerHTML = "";
-      QRCode.toCanvas(qrBox, text, { width: 200 });
-    }
+      QRCode.toCanvas(qrBox, reservationId, { width: 200 });
+
+      alert("จองสำเร็จ!");
+    };
   </script>
 
+  <!-- STYLE UI -->
   <style>
     body {
-      font-family: Arial;
-      text-align: center;
-      margin-top: 40px;
+      font-family: "Prompt", sans-serif;
+      background: #f3f6fa;
+      display: flex;
+      justify-content: center;
+      padding-top: 60px;
     }
+
+    .card {
+      background: white;
+      width: 420px;
+      padding: 30px;
+      border-radius: 18px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: #1d3557;
+    }
+
+    input {
+      width: 85%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #999;
+      margin-bottom: 15px;
+      font-size: 18px;
+      text-align: center;
+    }
+
+    button {
+      width: 90%;
+      padding: 14px;
+      background: #457b9d;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 20px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #1d3557;
+    }
+
     #qrBox {
       margin-top: 20px;
-    }
-    input {
-      font-size: 22px;
-      padding: 10px;
-      width: 250px;
-      text-align: center;
-    }
-    button {
-      margin-top: 15px;
-      padding: 10px 25px;
-      font-size: 20px;
     }
   </style>
 
 </head>
+
 <body>
 
-  <h1>ระบบจองที่จอดรถ</h1>
+  <div class="card">
+    <h1>จองที่จอดรถ</h1>
 
-  <h3>กรอกเบอร์มือถือเพื่อจอง / เรียกดู QR เดิม</h3>
+    <input id="phone" placeholder="กรอกเบอร์มือถือ" />
 
-  <input id="phone" type="text" placeholder="กรอกเบอร์มือถือ">
+    <button onclick="bookSlot()">จองที่จอด</button>
 
-  <br>
-  <button onclick="bookSlot()">จอง / แสดง QR</button>
+    <h3>รหัสการจอง</h3>
+    <div id="resId" style="font-size: 22px; color: #333;"></div>
 
-  <h3>รหัสการจอง:</h3>
-  <div id="resId" style="font-size: 24px; color: #333;"></div>
-
-  <h3>QR Code</h3>
-  <canvas id="qrBox"></canvas>
+    <h3>QR Code</h3>
+    <canvas id="qrBox"></canvas>
+  </div>
 
 </body>
 </html>
