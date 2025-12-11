@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <title>ระบบจองที่จอดรถ</title>
 
-  <!-- โหลด QRCode library -->
+  <!-- QRCode library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 
   <script type="module">
-    // Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
     import { getDatabase, ref, push, set, get, child } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
@@ -25,7 +24,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // ฟังก์ชันแปลงเวลาไทย
+    // -------------------------- เวลาไทย --------------------------
     function formatThaiTime(timestamp) {
       const date = new Date(timestamp);
       return date.toLocaleString("th-TH", {
@@ -39,71 +38,71 @@
       });
     }
 
-    // ฟังก์ชันแสดง QR Code
-    function showQR(id) {
-      const qrBox = document.getElementById("qrBox");
-      qrBox.innerHTML = "";
-      QRCode.toCanvas(qrBox, id, { width: 200 }, (err) => {
-        if (err) console.error(err);
-      });
+    // -------------------------- ตรวจเบอร์ --------------------------
+    async function checkExisting(phone) {
+      const dbRef = ref(db);
+      const snap = await get(child(dbRef, "reservations"));
+
+      if (!snap.exists()) return null;
+
+      const data = snap.val();
+      for (let id in data) {
+        if (data[id].phone === phone) {
+          return data[id]; // คืนข้อมูลการจองเก่า
+        }
+      }
+      return null;
     }
 
-    // กดปุ่มจอง
+    // -------------------------- ฟังก์ชันจอง --------------------------
     window.bookSlot = async function () {
       const phone = document.getElementById("phone").value.trim();
 
-      if (!phone) {
-        alert("กรุณากรอกเบอร์โทร");
+      if (phone.length < 9) {
+        alert("กรุณากรอกเบอร์โทรให้ถูกต้อง");
         return;
       }
 
-      const dbRef = ref(db);
+      // เช็คว่าเบอร์นี้เคยจองหรือยัง
+      const oldBooking = await checkExisting(phone);
 
-      // ตรวจว่าเบอร์นี้มีบันทึกไว้หรือยัง
-      const snapshot = await get(child(dbRef, "users/" + phone));
-
-      if (snapshot.exists()) {
-        // --------------------------
-        // เบอร์นี้เคยจองแล้ว → แสดง QR เดิม
-        // --------------------------
-        const oldResId = snapshot.val().reservationId;
-
-        document.getElementById("resId").innerText = oldResId;
-        showQR(oldResId);
-
-        alert("เบอร์นี้เคยจองแล้ว\nกำลังแสดง QR เดิมให้คุณ");
-
+      if (oldBooking) {
+        // ใช้ข้อมูลเก่า ไม่สร้างใหม่
+        document.getElementById("resId").innerText = oldBooking.id;
+        drawQR(oldBooking.id);
+        alert("พบข้อมูลเดิม — แสดง QR เดิมให้คุณแล้ว");
         return;
       }
 
-      // --------------------------
-      // ยังไม่เคยจอง → สร้างใหม่
-      // --------------------------
+      // -------------------- สร้างรายการใหม่ -------------------------
       const reservationRef = push(ref(db, "reservations"));
       const reservationId = reservationRef.key;
 
       const now = Date.now();
-      const timeTH = formatThaiTime(now);
+      const thaiTime = formatThaiTime(now);
 
       const data = {
         id: reservationId,
         phone: phone,
         timestamp: now,
-        time_th: timeTH,
+        time_th: thaiTime,
         used: false
       };
 
       await set(reservationRef, data);
 
-      // บันทึกเบอร์ → ผูกกับ reservationId
-      await set(ref(db, "users/" + phone), {
-        reservationId: reservationId
-      });
-
-      // แสดงผล
       document.getElementById("resId").innerText = reservationId;
-      showQR(reservationId);
+
+      drawQR(reservationId);
+      alert("จองสำเร็จ!");
     };
+
+    // -------------------------- สร้าง QR --------------------------
+    function drawQR(text) {
+      const qrBox = document.getElementById("qrBox");
+      qrBox.innerHTML = "";
+      QRCode.toCanvas(qrBox, text, { width: 200 });
+    }
   </script>
 
   <style>
@@ -115,6 +114,17 @@
     #qrBox {
       margin-top: 20px;
     }
+    input {
+      font-size: 22px;
+      padding: 10px;
+      width: 250px;
+      text-align: center;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 25px;
+      font-size: 20px;
+    }
   </style>
 
 </head>
@@ -122,19 +132,17 @@
 
   <h1>ระบบจองที่จอดรถ</h1>
 
-  <h3>กรอกเบอร์โทรเพื่อจอง:</h3>
-  <input id="phone" type="text" placeholder="เช่น 0812345678" style="font-size:18px; padding:5px;">
+  <h3>กรอกเบอร์มือถือเพื่อจอง / เรียกดู QR เดิม</h3>
 
-  <br><br>
+  <input id="phone" type="text" placeholder="กรอกเบอร์มือถือ">
 
-  <button onclick="bookSlot()" style="padding: 12px 25px; font-size: 18px;">
-    จองที่จอดรถ
-  </button>
+  <br>
+  <button onclick="bookSlot()">จอง / แสดง QR</button>
 
   <h3>รหัสการจอง:</h3>
-  <div id="resId" style="font-size:22px; color:#333; margin-bottom:10px;"></div>
+  <div id="resId" style="font-size: 24px; color: #333;"></div>
 
-  <h3>QR Code สำหรับสแกน</h3>
+  <h3>QR Code</h3>
   <canvas id="qrBox"></canvas>
 
 </body>
