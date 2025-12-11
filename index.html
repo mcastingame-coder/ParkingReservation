@@ -2,13 +2,11 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>ระบบจองที่จอดรถ (Parking Reservation)</title>
+  <title>ระบบจองที่จอดรถ</title>
 
-  <!-- โหลด QRCode library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 
   <script type="module">
-    // Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
     import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
@@ -25,7 +23,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // ฟังก์ชันแปลงเวลาไทย
     function formatThaiTime(timestamp) {
       const date = new Date(timestamp);
       return date.toLocaleString("th-TH", {
@@ -39,13 +36,22 @@
       });
     }
 
-    // ฟังก์ชันจองที่จอด
+    // ✔️ ถ้าเคยจองแล้ว ปิดปุ่มตอนโหลดหน้าเว็บ
+    window.onload = () => {
+      if (localStorage.getItem("reserved") === "true") {
+        document.getElementById("bookBtn").disabled = true;
+      }
+    };
+
     window.bookSlot = async function () {
+      document.getElementById("bookBtn").disabled = true;
+      localStorage.setItem("reserved", "true");
+
       const reservationRef = push(ref(db, "reservations"));
       const reservationId = reservationRef.key;
 
-      const now = Date.now();                  // timestamp
-      const timeTH = formatThaiTime(now);      // เวลาไทย
+      const now = Date.now();
+      const timeTH = formatThaiTime(now);
 
       const data = {
         id: reservationId,
@@ -56,15 +62,11 @@
 
       await set(reservationRef, data);
 
-      // แสดง ID
       document.getElementById("resId").innerText = reservationId;
 
-      // สร้าง QR
       const qrBox = document.getElementById("qrBox");
-      qrBox.innerHTML = "";  // clear ก่อน
-      QRCode.toCanvas(qrBox, reservationId, { width: 180 }, (err) => {
-        if (err) console.error(err);
-      });
+      qrBox.innerHTML = "";
+      QRCode.toCanvas(qrBox, reservationId, { width: 180 });
     };
   </script>
 
@@ -72,10 +74,10 @@
     body {
       font-family: Arial;
       text-align: center;
-      margin-top: 40px;
+      margin-top: 400px;
     }
     #qrBox {
-      margin-top: 20px;
+      margin-top: 200px;
     }
   </style>
 
@@ -84,16 +86,16 @@
 
   <h1>ระบบจองที่จอดรถ</h1>
 
-  <button onclick="bookSlot()" style="padding: 12px 25px; font-size: 18px;">
-    จองที่จอดรถ (Reservation)
+  <button id="bookBtn" onclick="bookSlot()" 
+          style="padding: 12px 25px; font-size: 18px;">
+    จองที่จอดรถ
   </button>
 
   <h3>รหัสการจอง:</h3>
   <div id="resId" style="font-size: 20px; color: #333;"></div>
 
-  <h3>QR Code สำหรับยืนยันการจอง</h3>
+  <h3>QR Code สำหรับสแกน</h3>
   <canvas id="qrBox"></canvas>
 
 </body>
 </html>
-
