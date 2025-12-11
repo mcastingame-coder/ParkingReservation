@@ -1,74 +1,123 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>ระบบจองที่จอดรถ</title>
 
-  <!-- QRCode -->
+  <!-- โหลด QRCode library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 
-  <!-- Firebase แบบใช้งานได้บน GitHub Pages -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script type="module">
+    // Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBeHQs4qOqXDYseMGmLRNlzOJesvgyUcS8",
+      authDomain: "parking-reservation-8a90d.firebaseapp.com",
+      databaseURL: "https://parking-reservation-8a90d-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "parking-reservation-8a90d",
+      storageBucket: "parking-reservation-8a90d.appspot.com",
+      messagingSenderId: "229489334106",
+      appId: "1:229489334106:web:80f41505d329ace87b4563",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ฟังก์ชันแปลงเวลาไทย
+    function formatThaiTime(timestamp) {
+      const date = new Date(timestamp);
+      return date.toLocaleString("th-TH", {
+        timeZone: "Asia/Bangkok",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    // ⭐ ปิดปุ่มทันทีถ้าจองไปแล้ว (ตรวจจาก localStorage)
+    window.onload = function () {
+      if (localStorage.getItem("alreadyBooked") === "true") {
+        disableButton();
+      }
+    };
+
+    function disableButton() {
+      const btn = document.getElementById("bookBtn");
+      btn.disabled = true;
+      btn.innerText = "จองแล้ว";
+      btn.style.background = "#999";
+    }
+
+    // ฟังก์ชันจองที่จอด
+    window.bookSlot = async function () {
+
+      // ⭐ ถ้าจองแล้ว → ไม่ให้กดอีกเด็ดขาด
+      if (localStorage.getItem("alreadyBooked") === "true") {
+        alert("คุณจองไปแล้ว ไม่สามารถจองซ้ำได้");
+        return;
+      }
+
+      const reservationRef = push(ref(db, "reservations"));
+      const reservationId = reservationRef.key;
+
+      const now = Date.now();
+      const timeTH = formatThaiTime(now);
+
+      const data = {
+        id: reservationId,
+        timestamp: now,
+        time_th: timeTH,
+        used: false
+      };
+
+      await set(reservationRef, data);
+
+      document.getElementById("resId").innerText = reservationId;
+
+      // สร้าง QR
+      const qrBox = document.getElementById("qrBox");
+      qrBox.innerHTML = "";
+      QRCode.toCanvas(qrBox, reservationId, { width: 180 });
+
+      // ⭐ บันทึกว่า "จองแล้ว" ถาวร
+      localStorage.setItem("alreadyBooked", "true");
+
+      // ⭐ ปิดปุ่ม
+      disableButton();
+    };
+  </script>
 
   <style>
-    body { font-family: Arial; text-align: center; margin-top: 50px; }
+    body {
+      font-family: Arial;
+      text-align: center;
+      margin-top: 200px;
+    }
+    #qrBox {
+      margin-top: 20px;
+    }
   </style>
+
 </head>
 <body>
 
   <h1>ระบบจองที่จอดรถ</h1>
 
-  <button onclick="bookSlot()" style="padding: 15px 30px; font-size: 20px;">
+  <!-- ⭐ เพิ่ม id="bookBtn" -->
+  <button id="bookBtn" onclick="bookSlot()" style="padding: 12px 25px; font-size: 18px;">
     จองที่จอดรถ
   </button>
 
   <h3>รหัสการจอง:</h3>
-  <div id="resId" style="font-size: 22px; color: #333;"></div>
+  <div id="resId" style="font-size: 20px; color: #333;"></div>
 
-  <h3>QR Code</h3>
+  <h3>QR Code สำหรับสแกน</h3>
   <canvas id="qrBox"></canvas>
-
-<script>
-  // ---------------- Firebase ----------------
-  const firebaseConfig = {
-    apiKey: "AIzaSyBeHQs4qOqXDYseMGmLRNlzOJesvgyUcS8",
-    authDomain: "parking-reservation-8a90d.firebaseapp.com",
-    databaseURL: "https://parking-reservation-8a90d-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "parking-reservation-8a90d",
-    storageBucket: "parking-reservation-8a90d.appspot.com",
-    messagingSenderId: "229489334106",
-    appId: "1:229489334106:web:80f41505d329ace87b4563",
-  };
-
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  // ---------- เวลาไทย ----------
-  function thaiTime(ts) {
-    return new Date(ts).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
-  }
-
-  // ---------- จอง ----------
-  function bookSlot() {
-    const ref = db.ref("reservations").push();
-    const id = ref.key;
-    const ts = Date.now();
-
-    ref.set({
-      id: id,
-      timestamp: ts,
-      time_th: thaiTime(ts),
-      used: false
-    });
-
-    document.getElementById("resId").innerText = id;
-
-    const qrCanvas = document.getElementById("qrBox");
-    qrCanvas.innerHTML = "";
-    QRCode.toCanvas(qrCanvas, id, { width: 200 });
-  }
-</script>
 
 </body>
 </html>
