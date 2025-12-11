@@ -4,13 +4,12 @@
   <meta charset="UTF-8">
   <title>ระบบจองที่จอดรถ</title>
 
-  <!-- โหลด QRCode library -->
+  <!-- QR Code Library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 
   <script type="module">
-    // Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+    import { getDatabase, ref, push, set, get, child } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBeHQs4qOqXDYseMGmLRNlzOJesvgyUcS8",
@@ -26,9 +25,8 @@
     const db = getDatabase(app);
 
     // ฟังก์ชันแปลงเวลาไทย
-    function formatThaiTime(timestamp) {
-      const date = new Date(timestamp);
-      return date.toLocaleString("th-TH", {
+    function thaiTime() {
+      return new Date().toLocaleString("th-TH", {
         timeZone: "Asia/Bangkok",
         year: "numeric",
         month: "2-digit",
@@ -39,84 +37,93 @@
       });
     }
 
-    // ⭐ ปิดปุ่มทันทีถ้าจองไปแล้ว (ตรวจจาก localStorage)
-    window.onload = function () {
-      if (localStorage.getItem("alreadyBooked") === "true") {
-        disableButton();
-      }
-    };
-
-    function disableButton() {
-      const btn = document.getElementById("bookBtn");
-      btn.disabled = true;
-      btn.innerText = "จองแล้ว";
-      btn.style.background = "#999";
-    }
-
-    // ฟังก์ชันจองที่จอด
+    // ---------------------------
+    // ฟังก์ชันกดปุ่ม "จอง"
+    // ---------------------------
     window.bookSlot = async function () {
+      const phone = document.getElementById("phone").value.trim();
+      const resIdBox = document.getElementById("resId");
+      const qrBox = document.getElementById("qrBox");
 
-      // ⭐ ถ้าจองแล้ว → ไม่ให้กดอีกเด็ดขาด
-      if (localStorage.getItem("alreadyBooked") === "true") {
-        alert("คุณจองไปแล้ว ไม่สามารถจองซ้ำได้");
+      if (phone.length < 10) {
+        alert("กรุณากรอกเบอร์ให้ถูกต้อง");
         return;
       }
 
-      const reservationRef = push(ref(db, "reservations"));
-      const reservationId = reservationRef.key;
+      // 1) เช็กว่ามีเบอร์นี้ในระบบแล้วหรือยัง
+      const dbRef = ref(db);
+      const snapshot = await get(child(dbRef, "reservations/" + phone));
 
-      const now = Date.now();
-      const timeTH = formatThaiTime(now);
+      if (snapshot.exists()) {
+        // ---- มีการจองแล้ว → แสดงของเดิม ----
+        const data = snapshot.val();
+        resIdBox.innerText = data.id;
+
+        qrBox.innerHTML = "";
+        QRCode.toCanvas(qrBox, data.id, { width: 200 });
+
+        alert("เบอร์นี้เคยจองแล้ว — แสดง QR เดิมให้คุณ");
+        return;
+      }
+
+      // 2) ถ้ายังไม่เคยจอง → สร้างใหม่
+      const reservationId = push(ref(db, "tmp")).key;
 
       const data = {
         id: reservationId,
-        timestamp: now,
-        time_th: timeTH,
+        phone: phone,
+        timestamp: Date.now(),
+        time_th: thaiTime(),
         used: false
       };
 
-      await set(reservationRef, data);
+      await set(ref(db, "reservations/" + phone), data);
 
-      document.getElementById("resId").innerText = reservationId;
-
-      // สร้าง QR
-      const qrBox = document.getElementById("qrBox");
+      resIdBox.innerText = reservationId;
       qrBox.innerHTML = "";
-      QRCode.toCanvas(qrBox, reservationId, { width: 180 });
+      QRCode.toCanvas(qrBox, reservationId, { width: 200 });
 
-      // ⭐ บันทึกว่า "จองแล้ว" ถาวร
-      localStorage.setItem("alreadyBooked", "true");
-
-      // ⭐ ปิดปุ่ม
-      disableButton();
-    };
+      alert("จองสำเร็จ!");
+    }
   </script>
 
   <style>
     body {
       font-family: Arial;
       text-align: center;
-      margin-top: 200px;
+      margin-top: 50px;
+      font-size: 20px;
+    }
+    input {
+      padding: 12px;
+      font-size: 22px;
+      width: 260px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 12px 30px;
+      font-size: 24px;
     }
     #qrBox {
       margin-top: 20px;
     }
   </style>
-
 </head>
 <body>
 
   <h1>ระบบจองที่จอดรถ</h1>
 
-  <!-- ⭐ เพิ่ม id="bookBtn" -->
-  <button id="bookBtn" onclick="bookSlot()" style="padding: 12px 25px; font-size: 18px;">
-    จองที่จอดรถ
-  </button>
+  <h3>กรอกเบอร์โทร</h3>
+  <input id="phone" type="number" placeholder="เช่น 0981234567">
+
+  <br>
+
+  <button onclick="bookSlot()">จอง</button>
 
   <h3>รหัสการจอง:</h3>
-  <div id="resId" style="font-size: 20px; color: #333;"></div>
+  <div id="resId" style="font-size: 28px; color: #333;"></div>
 
-  <h3>QR Code สำหรับสแกน</h3>
+  <h3>QR Code</h3>
   <canvas id="qrBox"></canvas>
 
 </body>
