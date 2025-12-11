@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>ระบบจองที่จอดรถ</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBeHQs4qOqXDYseMGmLRNlzOJesvgyUcS8",
+      authDomain: "parking-reservation-8a90d.firebaseapp.com",
+      databaseURL: "https://parking-reservation-8a90d-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "parking-reservation-8a90d",
+      storageBucket: "parking-reservation-8a90d.appspot.com",
+      messagingSenderId: "229489334106",
+      appId: "1:229489334106:web:80f41505d329ace87b4563",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    function formatThaiTime(timestamp) {
+      const date = new Date(timestamp);
+      return date.toLocaleString("th-TH", {
+        timeZone: "Asia/Bangkok",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    // ✔️ ถ้าเคยจองแล้ว ปิดปุ่มตอนโหลดหน้าเว็บ
+    window.onload = () => {
+      if (localStorage.getItem("reserved") === "true") {
+        document.getElementById("bookBtn").disabled = true;
+      }
+    };
+
+    window.bookSlot = async function () {
+      document.getElementById("bookBtn").disabled = true;
+      localStorage.setItem("reserved", "true");
+
+      const reservationRef = push(ref(db, "reservations"));
+      const reservationId = reservationRef.key;
+
+      const now = Date.now();
+      const timeTH = formatThaiTime(now);
+
+      const data = {
+        id: reservationId,
+        timestamp: now,
+        time_th: timeTH,
+        used: false
+      };
+
+      await set(reservationRef, data);
+
+      document.getElementById("resId").innerText = reservationId;
+
+      const qrBox = document.getElementById("qrBox");
+      qrBox.innerHTML = "";
+      QRCode.toCanvas(qrBox, reservationId, { width: 180 });
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      margin-top: 400px;
+    }
+    #qrBox {
+      margin-top: 200px;
+    }
+  </style>
+
+</head>
+<body>
+
+  <h1>ระบบจองที่จอดรถ</h1>
+
+  <button id="bookBtn" onclick="bookSlot()" 
+          style="padding: 12px 25px; font-size: 18px;">
+    จองที่จอดรถ
+  </button>
+
+  <h3>รหัสการจอง:</h3>
+  <div id="resId" style="font-size: 20px; color: #333;"></div>
+
+  <h3>QR Code สำหรับสแกน</h3>
+  <canvas id="qrBox"></canvas>
+
+</body>
+</html>
