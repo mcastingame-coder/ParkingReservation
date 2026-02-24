@@ -86,19 +86,22 @@ window.reserve = async () => {
     const r = push(ref(db, "reservations"));
     const id = r.key;
     const now = Date.now();
+    const expireTime = now + (60 * 60 * 1000);
 
     const data = {
       id,
       phone,
       timestamp: now,
+      expire_time: expireTime,
       time_th: thaiTime(now),
+      expire_time_th: thaiTime(expireTime),
       used: false
-    };
+};
 
     await set(r, data);
     await set(ref(db, "user_reservations/" + phone), data);
 
-    showQR(id, data.time_th, false);
+    showQR(id, data.time_th, false, data.expire_time);
 
   } catch (e) {
     console.error(e);
@@ -107,9 +110,15 @@ window.reserve = async () => {
 };
 
 // ---------------- SHOW QR ----------------
-function showQR(id, time, used) {
+function showQR(id, time, used, expire_time) {
   qrTitle.style.display = "block";
   showTime.innerText = time;
+  const now = Date.now();
+  if (expire_time && now > expire_time) {
+    usedNote.style.display = "block";
+    usedNote.innerText = "⚠ QR หมดเวลาแล้ว";
+    return;
+}
 
   const canvas = document.getElementById("qrCanvas");
   const ctx = canvas.getContext("2d");
@@ -198,3 +207,4 @@ button {
 
 </body>
 </html>
+
