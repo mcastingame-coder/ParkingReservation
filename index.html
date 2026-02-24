@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Parking Reservation</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 
 <script type="module">
@@ -132,77 +132,119 @@ function showQR(id, time, used, expire_time) {
 </script>
 
 <style>
+/* ====== VINTAGE WHITE THEME + SARABUN ====== */
+
 body {
-  font-family: "Prompt", sans-serif;
-  background: #000000;
-  color: #FFFFFF;
+  font-family: 'Sarabun', sans-serif;
+  background: #f4f1ea;
   margin: 0;
   padding: 20px;
+  color: #3e3a36;
   text-align: center;
 }
 
+/* หัวข้อหลัก */
+h2 {
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-bottom: 5px;
+}
+
+h2::after {
+  content: "";
+  display: block;
+  width: 60px;
+  height: 2px;
+  background: #8b5e3c;
+  margin: 10px auto 20px;
+}
+
+/* กล่องหลัก */
 .container {
   max-width: 420px;
   margin: auto;
-  background: #111111;
-  padding: 25px;
-  border-radius: 20px;
-  box-shadow: 0 0 20px rgba(255,255,255,0.1);
-  border: 1px solid #333;
+  background: #fffdf8;
+  padding: 30px;
+  border-radius: 12px;
+  border: 1px solid #d6cfc2;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
+/* ช่องกรอก */
 input {
   width: 90%;
   padding: 14px;
   font-size: 18px;
-  border-radius: 10px;
-  border: 2px solid #555;
-  background: #000;
-  color: #fff;
+  border-radius: 6px;
+  border: 1px solid #c8bfb0;
+  background: #fdfaf5;
+  color: #3e3a36;
+  font-family: 'Sarabun', sans-serif;
 }
 
 input:focus {
-  border-color: #007BFF;
   outline: none;
+  border-color: #8b5e3c;
 }
+
+/* ปุ่มหลัก */
 button {
   width: 100%;
-  padding: 15px;
-  font-size: 20px;
+  padding: 14px;
+  font-size: 18px;
   margin-top: 20px;
-  background: #007BFF;
-  color: #FFFFFF;
+  background: #8b5e3c;
+  color: #ffffff;
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
+  font-family: 'Sarabun', sans-serif;
+  transition: 0.2s ease;
 }
 
 button:hover {
-  background: #0056b3;
-}
-}
-
-.lang:nth-child(1) {
-  background: #007BFF;
-  color: white;
+  background: #6f472c;
+  transform: translateY(-2px);
 }
 
-.lang:nth-child(2) {
-  background: #FFC107;
-  color: black;
+/* ปุ่มภาษา */
+.lang {
+  margin: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid #c8bfb0;
+  background: #efe7dc;
+  color: #3e3a36;
+  font-size: 14px;
 }
 
-#qrCanvas {
+/* ข้อความเวลา */
+#showTime {
+  margin-top: 10px;
+  font-size: 16px;
+}
+
+/* ข้อความแจ้งเตือน */
+#usedNote {
+  color: #b08968;
+  font-weight: bold;
+  margin-top: 12px;
+  display: none;
+}
+
+/* QR Canvas */
+canvas {
   margin-top: 20px;
 }
-#usedNote {
-  color: #FFCC00;
-  font-weight: bold;
-  display: none;
-  font-size: 18px;
-}
 
+/* รองรับมือถือ */
+@media (max-width: 480px) {
+  .container {
+    width: 95%;
+    padding: 20px;
+  }
+}
 </style>
 </head>
 
@@ -225,6 +267,7 @@ button:hover {
 
 </body>
 </html>
+
 
 
 
