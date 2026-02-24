@@ -78,7 +78,7 @@ window.reserve = async () => {
 
     if (snap.exists()) {
       const d = snap.val();
-      showQR(d.id, d.time_th, d.used);
+      showQR(d.id, d.time_th, d.used, d.expire_time); 
       alert(text[lang].already);
       return;
     }
@@ -207,4 +207,5 @@ button {
 
 </body>
 </html>
+
 
