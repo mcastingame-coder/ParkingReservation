@@ -134,20 +134,21 @@ function showQR(id, time, used, expire_time) {
 <style>
 body {
   font-family: "Prompt", sans-serif;
-  background: linear-gradient(135deg, #000000, #434343);
+  background: #000000;
+  color: #FFFFFF;
   margin: 0;
   padding: 20px;
-  color: #333;
   text-align: center;
 }
 
 .container {
   max-width: 420px;
   margin: auto;
-  background: white;
+  background: #111111;
   padding: 25px;
   border-radius: 20px;
-  box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+  box-shadow: 0 0 20px rgba(255,255,255,0.1);
+  border: 1px solid #333;
 }
 
 input {
@@ -155,38 +156,53 @@ input {
   padding: 14px;
   font-size: 18px;
   border-radius: 10px;
-  border: 1px solid #ccc;
+  border: 2px solid #555;
+  background: #000;
+  color: #fff;
 }
 
+input:focus {
+  border-color: #007BFF;
+  outline: none;
+}
 button {
   width: 100%;
   padding: 15px;
   font-size: 20px;
   margin-top: 20px;
-  background: #4e73df;
-  color: white;
+  background: #007BFF;
+  color: #FFFFFF;
   border: none;
   border-radius: 12px;
   cursor: pointer;
+  font-weight: bold;
 }
 
-.lang {
-  margin: 10px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: none;
-  cursor: pointer;
+button:hover {
+  background: #0056b3;
+}
+}
+
+.lang:nth-child(1) {
+  background: #007BFF;
+  color: white;
+}
+
+.lang:nth-child(2) {
+  background: #FFC107;
+  color: black;
 }
 
 #qrCanvas {
   margin-top: 20px;
 }
-
 #usedNote {
-  color: red;
+  color: #FFCC00;
   font-weight: bold;
   display: none;
+  font-size: 18px;
 }
+
 </style>
 </head>
 
@@ -209,6 +225,7 @@ button {
 
 </body>
 </html>
+
 
 
 
