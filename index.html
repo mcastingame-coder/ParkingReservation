@@ -65,26 +65,23 @@ const text = {
 let lang = "th";
 window.changeLang = l => {
   lang = l;
-  title.innerText = text[l].title;
+  document.getElementById("title").innerText = text[l].title;
+  document.getElementById("phoneInput").placeholder = text[l].phone;
+  document.getElementById("reserveBtn").innerText = text[l].reserve;
   phoneInput.placeholder = text[l].phone;
   reserveBtn.innerText = text[l].reserve;
 };
 
-// ---------------- RESERVE ----------------
-  function reserve() {
-
-  let phone = document.getElementById("phoneInput").value;
-
-  if (!/^[0-9]{10}$/.test(phone)) {
-    alert("กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง (10 หลัก ตัวเลขเท่านั้น)");
-    return;
-  }
-  }
-  
-  window.reserve = async () => {
+// ---------------- RESERVE ----------------  
+ window.reserve = async () => {
   try {
     const phone = phoneInput.value.trim();
-    if (phone.length < 8) return alert(text[lang].error);
+
+    // 🔥 ตรวจ 10 หลักตรงนี้แทน
+    if (!/^[0-9]{10}$/.test(phone)) {
+      alert(text[lang].error);
+      return;
+    }
 
     const snap = await get(child(ref(db), "user_reservations/" + phone));
 
@@ -108,7 +105,7 @@ window.changeLang = l => {
       time_th: thaiTime(now),
       expire_time_th: thaiTime(expireTime),
       used: false
-};
+    };
 
     await set(r, data);
     await set(ref(db, "user_reservations/" + phone), data);
@@ -285,6 +282,7 @@ canvas {
 
 </body>
 </html>
+
 
 
 
