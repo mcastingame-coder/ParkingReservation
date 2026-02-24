@@ -86,7 +86,7 @@ window.reserve = async () => {
     const r = push(ref(db, "reservations"));
     const id = r.key;
     const now = Date.now();
-    const expireTime = now + (60 * 60 * 1000);
+    const expireTime = now + (1 * 60 * 1000);
 
     const data = {
       id,
@@ -207,5 +207,6 @@ button {
 
 </body>
 </html>
+
 
 
