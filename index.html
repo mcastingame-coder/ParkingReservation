@@ -71,7 +71,17 @@ window.changeLang = l => {
 };
 
 // ---------------- RESERVE ----------------
-window.reserve = async () => {
+  function reserve() {
+
+  let phone = document.getElementById("phoneInput").value;
+
+  if (!/^[0-9]{10}$/.test(phone)) {
+    alert("กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง (10 หลัก ตัวเลขเท่านั้น)");
+    return;
+  }
+
+  
+  window.reserve = async () => {
   try {
     const phone = phoneInput.value.trim();
     if (phone.length < 8) return alert(text[lang].error);
@@ -256,7 +266,15 @@ canvas {
 <button class="lang" onclick="changeLang('en')">English</button>
 
 <div class="container">
-  <input id="phoneInput" placeholder="กรอกเบอร์โทรศัพท์">
+  <input 
+  id="phoneInput" 
+  placeholder="กรอกเบอร์โทรศัพท์"
+  type="tel"
+  inputmode="numeric"
+  maxlength="10"
+  pattern="[0-9]*"
+  oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+>
   <button id="reserveBtn" onclick="reserve()">จองที่จอดรถ</button>
 
   <h3 id="qrTitle" style="display:none;">QR Code สำหรับเข้าใช้บริการ</h3>
@@ -267,6 +285,7 @@ canvas {
 
 </body>
 </html>
+
 
 
 
