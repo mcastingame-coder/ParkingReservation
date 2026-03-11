@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html lang="th">
 <head> 
-<meta name="theme-color" content="#4e73df">
-<link rel="manifest" href="manifest.json">
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Parking Reservation</title>
 
@@ -11,284 +9,303 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getDatabase, ref, push, set, get, child } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import { 
+getDatabase,
+ref,
+push,
+set,
+get,
+child,
+remove,
+onValue
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBeHQs4qOqXDYseMGmLRNlzOJesvgyUcS8",
-  authDomain: "parking-reservation-8a90d.firebaseapp.com",
-  databaseURL: "https://parking-reservation-8a90d-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "parking-reservation-8a90d",
-  storageBucket: "parking-reservation-8a90d.appspot.com",
-  messagingSenderId: "229489334106",
-  appId: "1:229489334106:web:80f41505d329ace87b4563",
+apiKey: "AIzaSyBeHQs4qOqXDYseMGmLRNlzOJesvgyUcS8",
+authDomain: "parking-reservation-8a90d.firebaseapp.com",
+databaseURL: "https://parking-reservation-8a90d-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId: "parking-reservation-8a90d",
+storageBucket: "parking-reservation-8a90d.appspot.com",
+messagingSenderId: "229489334106",
+appId: "1:229489334106:web:80f41505d329ace87b4563",
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ---------------- TIME ----------------
+const MAX_PARKING = 20;
+
+
+
+// -------- TIME --------
 function thaiTime(ts) {
-  return new Date(ts).toLocaleString("th-TH", {
-    timeZone: "Asia/Bangkok",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
+return new Date(ts).toLocaleString("th-TH", {
+timeZone: "Asia/Bangkok",
+year: "numeric",
+month: "2-digit",
+day: "2-digit",
+hour: "2-digit",
+minute: "2-digit",
+second: "2-digit"
+});
 }
 
-// ---------------- LANGUAGE ----------------
-const text = {
-  th: {
-    title: "ระบบจองที่จอดรถ",
-    phone: "กรอกเบอร์โทรศัพท์",
-    reserve: "จองที่จอดรถ",
-    already: "เบอร์นี้เคยจองแล้ว",
-    qr: "QR Code สำหรับเข้าใช้บริการ",
-    used: "⚠ QR นี้ถูกใช้งานแล้ว",
-    error: "กรุณากรอกเบอร์ให้ถูกต้อง"
-  },
-  en: {
-    title: "Parking Reservation System",
-    phone: "Enter mobile number",
-    reserve: "Reserve Parking",
-    already: "This number already has a reservation",
-    qr: "Your Parking QR Code",
-    used: "⚠ This QR has already been used",
-    error: "Please enter a valid phone number"
-  }
-};
 
-let lang = "th";
-window.changeLang = l => {
-  lang = l;
-  document.getElementById("title").innerText = text[l].title;
-  document.getElementById("phoneInput").placeholder = text[l].phone;
-  document.getElementById("reserveBtn").innerText = text[l].reserve;
-  phoneInput.placeholder = text[l].phone;
-  reserveBtn.innerText = text[l].reserve;
-};
 
-// ---------------- RESERVE ----------------  
- window.reserve = async () => {
-  try {
-    const phone = phoneInput.value.trim();
+// -------- AUTO CANCEL --------
+async function autoCancelExpired(){
 
-    // 🔥 ตรวจ 10 หลักตรงนี้แทน
-    if (!/^[0-9]{10}$/.test(phone)) {
-      alert(text[lang].error);
-      return;
-    }
+const snap = await get(ref(db,"reservations"));
 
-    const snap = await get(child(ref(db), "user_reservations/" + phone));
+if(!snap.exists()) return;
 
-    if (snap.exists()) {
-      const d = snap.val();
-      showQR(d.id, d.time_th, d.used, d.expire_time); 
-      alert(text[lang].already);
-      return;
-    }
+const data = snap.val();
+const now = Date.now();
 
-    const r = push(ref(db, "reservations"));
-    const id = r.key;
-    const now = Date.now();
-    const expireTime = now + (30 * 60 * 1000);
+for(let key in data){
 
-    const data = {
-      id,
-      phone,
-      timestamp: now,
-      expire_time: expireTime,
-      time_th: thaiTime(now),
-      expire_time_th: thaiTime(expireTime),
-      used: false
-    };
+if(data[key].expire_time && now > data[key].expire_time && data[key].used === false){
 
-    await set(r, data);
-    await set(ref(db, "user_reservations/" + phone), data);
+await remove(ref(db,"reservations/"+key));
+await remove(ref(db,"user_reservations/"+data[key].phone));
 
-    showQR(id, data.time_th, false, data.expire_time);
-
-  } catch (e) {
-    console.error(e);
-    alert("System error");
-  }
-};
-
-// ---------------- SHOW QR ----------------
-function showQR(id, time, used, expire_time) {
-  qrTitle.style.display = "block";
-  showTime.innerText = time;
-  const now = Date.now();
-  if (expire_time && now > expire_time) {
-    usedNote.style.display = "block";
-    usedNote.innerText = "⚠ QR หมดเวลาแล้ว";
-    return;
 }
 
-  const canvas = document.getElementById("qrCanvas");
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  QRCode.toCanvas(canvas, id, { width: 240 });
-  usedNote.style.display = used ? "block" : "none";
 }
+
+}
+
+
+
+// -------- SHOW PARKING STATUS --------
+function monitorParking(){
+
+onValue(ref(db,"reservations"),(snapshot)=>{
+
+let count = 0;
+
+if(snapshot.exists()){
+count = Object.keys(snapshot.val()).length;
+}
+
+const remain = MAX_PARKING - count;
+
+document.getElementById("parkingStatus").innerText =
+"ที่จอดว่าง "+remain+" / "+MAX_PARKING;
+
+});
+
+}
+
+monitorParking();
+
+
+
+// -------- RESERVE --------
+window.reserve = async ()=>{
+
+try{
+
+await autoCancelExpired();
+
+const phone = phoneInput.value.trim();
+
+if(!/^[0-9]{10}$/.test(phone)){
+alert("กรุณากรอกเบอร์โทรให้ถูกต้อง");
+return;
+}
+
+
+// ตรวจที่จอด
+const all = await get(ref(db,"reservations"));
+
+let count = 0;
+
+if(all.exists()){
+count = Object.keys(all.val()).length;
+}
+
+if(count >= MAX_PARKING){
+
+alert("ที่จอดรถเต็มแล้ว");
+
+return;
+
+}
+
+
+// ตรวจว่าจองไปแล้วหรือยัง
+const snap = await get(child(ref(db),"user_reservations/"+phone));
+
+if(snap.exists()){
+
+const d = snap.val();
+
+showQR(d.id,d.time_th,d.used,d.expire_time);
+
+alert("เบอร์นี้เคยจองแล้ว");
+
+return;
+
+}
+
+
+
+const r = push(ref(db,"reservations"));
+const id = r.key;
+
+const now = Date.now();
+
+const expireTime = now + (30*60*1000);
+
+
+
+const data = {
+
+id,
+phone,
+timestamp:now,
+expire_time:expireTime,
+time_th:thaiTime(now),
+expire_time_th:thaiTime(expireTime),
+used:false
+
+};
+
+
+
+await set(r,data);
+
+await set(ref(db,"user_reservations/"+phone),data);
+
+showQR(id,data.time_th,false,data.expire_time);
+
+
+}catch(e){
+
+console.error(e);
+alert("System error");
+
+}
+
+};
+
+
+
+// -------- SHOW QR --------
+function showQR(id,time,used,expire_time){
+
+qrTitle.style.display="block";
+
+showTime.innerText=time;
+
+const now = Date.now();
+
+if(expire_time && now > expire_time){
+
+usedNote.style.display="block";
+
+usedNote.innerText="⚠ QR หมดเวลาแล้ว";
+
+return;
+
+}
+
+const canvas = document.getElementById("qrCanvas");
+
+const ctx = canvas.getContext("2d");
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+QRCode.toCanvas(canvas,id,{width:240});
+
+usedNote.style.display = used ? "block" : "none";
+
+}
+
 </script>
 
+
+
 <style>
-/* ====== VINTAGE WHITE THEME + SARABUN ====== */
 
-body {
-  font-family: 'Sarabun', sans-serif;
-  background: #f4f1ea;
-  margin: 0;
-  padding: 20px;
-  color: #3e3a36;
-  text-align: center;
+body{
+font-family:'Sarabun',sans-serif;
+background:#f4f1ea;
+text-align:center;
+padding:20px;
 }
 
-/* หัวข้อหลัก */
-h2 {
-  font-weight: 600;
-  letter-spacing: 1px;
-  margin-bottom: 5px;
+.container{
+max-width:420px;
+margin:auto;
+background:white;
+padding:30px;
+border-radius:12px;
+box-shadow:0 5px 15px rgba(0,0,0,0.1);
 }
 
-h2::after {
-  content: "";
-  display: block;
-  width: 60px;
-  height: 2px;
-  background: #8b5e3c;
-  margin: 10px auto 20px;
+input{
+width:90%;
+padding:12px;
+font-size:18px;
 }
 
-/* กล่องหลัก */
-.container {
-  max-width: 420px;
-  margin: auto;
-  background: #fffdf8;
-  padding: 30px;
-  border-radius: 12px;
-  border: 1px solid #d6cfc2;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+button{
+width:100%;
+padding:12px;
+font-size:18px;
+margin-top:20px;
+background:#8b5e3c;
+color:white;
+border:none;
+border-radius:8px;
 }
 
-/* ช่องกรอก */
-input {
-  width: 90%;
-  padding: 14px;
-  font-size: 18px;
-  border-radius: 6px;
-  border: 1px solid #c8bfb0;
-  background: #fdfaf5;
-  color: #3e3a36;
-  font-family: 'Sarabun', sans-serif;
+#parkingStatus{
+font-size:18px;
+margin-bottom:15px;
+font-weight:600;
 }
 
-input:focus {
-  outline: none;
-  border-color: #8b5e3c;
+canvas{
+margin-top:20px;
 }
 
-/* ปุ่มหลัก */
-button {
-  width: 100%;
-  padding: 14px;
-  font-size: 18px;
-  margin-top: 20px;
-  background: #8b5e3c;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-family: 'Sarabun', sans-serif;
-  transition: 0.2s ease;
-}
-
-button:hover {
-  background: #6f472c;
-  transform: translateY(-2px);
-}
-
-/* ปุ่มภาษา */
-.lang {
-  margin: 8px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1px solid #c8bfb0;
-  background: #efe7dc;
-  color: #3e3a36;
-  font-size: 14px;
-}
-
-/* ข้อความเวลา */
-#showTime {
-  margin-top: 10px;
-  font-size: 16px;
-}
-
-/* ข้อความแจ้งเตือน */
-#usedNote {
-  color: #b08968;
-  font-weight: bold;
-  margin-top: 12px;
-  display: none;
-}
-
-/* QR Canvas */
-canvas {
-  margin-top: 20px;
-}
-
-/* รองรับมือถือ */
-@media (max-width: 480px) {
-  .container {
-    width: 95%;
-    padding: 20px;
-  }
-}
 </style>
+
 </head>
 
 <body>
 
-<h2 id="title">ระบบจองที่จอดรถ</h2>
+<h2>ระบบจองที่จอดรถ</h2>
 
-<button class="lang" onclick="changeLang('th')">ไทย</button>
-<button class="lang" onclick="changeLang('en')">English</button>
+<div id="parkingStatus">กำลังโหลด...</div>
 
 <div class="container">
-  <input 
-  id="phoneInput" 
-  placeholder="กรอกเบอร์โทรศัพท์"
-  type="tel"
-  inputmode="numeric"
-  maxlength="10"
-  pattern="[0-9]*"
-  oninput="this.value=this.value.replace(/[^0-9]/g,'')"
->
-  <button id="reserveBtn" onclick="reserve()">จองที่จอดรถ</button>
 
-  <h3 id="qrTitle" style="display:none;">QR Code สำหรับเข้าใช้บริการ</h3>
-  <div id="showTime"></div>
-  <canvas id="qrCanvas" width="240" height="240"></canvas>
-  <div id="usedNote">⚠ QR นี้ถูกใช้งานแล้ว</div>
+<input 
+id="phoneInput"
+placeholder="กรอกเบอร์โทรศัพท์"
+type="tel"
+maxlength="10"
+oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+>
+
+<button onclick="reserve()">จองที่จอดรถ</button>
+
+<h3 id="qrTitle" style="display:none;">QR Code สำหรับเข้าใช้บริการ</h3>
+
+<div id="showTime"></div>
+
+<canvas id="qrCanvas" width="240" height="240"></canvas>
+
+<div id="usedNote" style="display:none;">⚠ QR นี้ถูกใช้งานแล้ว</div>
+
 </div>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
